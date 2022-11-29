@@ -1,0 +1,4 @@
+Python 3.10.7 or above
+Pygame 2.1.2 or above(by cmd pip install pygame)
+
+Linux(Ubuntu tested), Windows(7/8, 10/11 tested), MacOS(tested)
