@@ -3,6 +3,11 @@ from random import randint
 from PIL import Image
 
 pygame.init()
+pygame.font.init()
+pygame.mixer.init()
+
+pygame.mixer.music.load( "bgm.wav" )
+pygame.mixer.music.play( -1 )
 
 screenWidth = 750
 screenHeight = 750
@@ -15,6 +20,10 @@ pygame.display.set_icon( icon )
 
 fps = 120
 clock = pygame.time.Clock()
+ 
+damageSound = pygame.mixer.Sound( "damage.wav" )
+levelSound = pygame.mixer.Sound( "level.wav" )
+healSound = pygame.mixer.Sound( "heal.wav" )
 
 playerimgleft = [ pygame.image.load( 'Spaceman_Sprite\L1.png' ), pygame.image.load( 'Spaceman_Sprite\L2.png' ), pygame.image.load( 'Spaceman_Sprite\L3.png' ),
                   pygame.image.load( 'Spaceman_Sprite\L4.png' ), pygame.image.load( 'Spaceman_Sprite\L5.png' ), pygame.image.load( 'Spaceman_Sprite\L6.png' ),
@@ -31,6 +40,7 @@ backgroundimg = pygame.image.load( 'background.png' )
 menuimg = pygame.image.load( 'menu.png' )
 howtoimg = pygame.image.load( 'howto.png' )
 heartimg = pygame.image.load( 'heart.png' )
+pickupimg = pygame.image.load( 'pickup.png' )
 
 #-Player Data-#
 score = 0
@@ -74,10 +84,41 @@ def updateScore():
     global score
     score += scoreFactor
 
+#-Heart Sprite-#
+class Heart( pygame.sprite.Sprite ):
+
+    def __init__( self ):
+        pygame.sprite.Sprite.__init__( self )
+        self.image = pickupimg
+        self.rect = self.image.get_rect()
+        self.rect.x = randint( 50, 700 )
+        self.rect.y = randint( 50, 700 )
+
+def genHeal():
+
+    if( player.lives < 3 and player.lives > 0 ):
+
+        if( randint( 1, 2 ) == 1 ):
+
+            if( not ( len( pickup_sprites ) > 0 ) ):
+
+                pickup_sprites.add( Heart() )
+
+def checkHeal():
+    
+    if( len( pygame.sprite.spritecollide( player, pickup_sprites, False ) ) > 0 ):
+        healSound.play()
+        player.lives += 1
+        for h in pickup_sprites:
+            pickup_sprites.remove( h )
+    
+
+pickup_sprites = pygame.sprite.Group()
+
 #-Player Sprite-#
 class Player( pygame.sprite.Sprite ):
 
-    def __init__( self, vel ): 
+    def __init__( self, vel ):
         pygame.sprite.Sprite.__init__( self )
         self.count = 0
         self.image = playerimgright[ int( self.count ) ]
@@ -117,8 +158,9 @@ class Player( pygame.sprite.Sprite ):
             if( self.count > 7 ): self.count = 0
         
     def damage( self ):
-        
+                
         self.lives -= 1
+        genHeal()
 
 player_sprites = pygame.sprite.Group()
 player = Player( 2 )
@@ -268,6 +310,7 @@ def checkCollision():
     if not crashed and len( pygame.sprite.spritecollide( player, asteroid_sprites, False ) ) > 0:
 
         win.blit( s, ( 0, 0 ) )
+        damageSound.play()
         
         for stone in pygame.sprite.spritecollide( player, asteroid_sprites, False ):
             asteroid_sprites.remove( stone )
@@ -359,6 +402,12 @@ def restart():
 
     for stone in asteroid_sprites:
         asteroid_sprites.remove( stone )
+        
+    for h in pickup_sprites:
+        pickup_sprites.remove( h )
+    
+    global levelStat
+    levelStat = [ False, False, False, False, False, False, False ]
 
     global crashed
     crashed = False
@@ -398,9 +447,11 @@ class Background():
 
 background = Background()
 
+levelStat = [ False, False, False, False, False, False, False ]
+
 def gameLevel():
 
-    global ballVel, scoreFactor, asteroids, added, level
+    global ballVel, scoreFactor, asteroids, added, level, levelStat
 
     # 1. little floating
     # 2. floating
@@ -420,6 +471,10 @@ def gameLevel():
     asteroid_sprites.draw( win )
 
     if( level == 1 ):
+        
+        if( not levelStat[0] ):
+            levelStat[0] = True
+            levelSound.play()
 
         if( randint( 0, 1 ) == 0 ): # UP
             player.rect.y -= 1
@@ -438,6 +493,10 @@ def gameLevel():
     if( score >= 30 ):
 
         level = 2
+        
+        if( not levelStat[1] ):
+            levelStat[1] = True
+            levelSound.play()
 
         if( randint( 0, 1 ) == 0 ):
 
@@ -463,17 +522,32 @@ def gameLevel():
                         background.x += 0.1
 
     if( score >= 40 ):
+        
         level = 3
+        if( not levelStat[2] ):
+            levelStat[2] = True
+            levelSound.play()
+            
         ballVel = 3
 
     if( score >= 50 ):
+        
         level = 4
+        if( not levelStat[3] ):
+            levelStat[3] = True
+            levelSound.play()
+            
         scoreFactor = 0.005
         ballVel = 4
 
 #-5-#
     if( score >= 70 and not added[0] ):
+        
         level = 5
+        if( not levelStat[4] ):
+            levelStat[4] = True
+            levelSound.play()
+        
         asteroid_sprites.add( Ball( ballVel ) )
         asteroid_sprites.add( Ball( ballVel ) )
         added[0] = True
@@ -491,12 +565,21 @@ def gameLevel():
         added[3] = True
         
     if( score >= 110 ):
+        
         level = 6
+        if( not levelStat[5] ):
+            levelStat[5] = True
+            levelSound.play()
+            
         scoreFactor = 0.01
         ballVel = 4.5
         
     if( score >= 150 ):
+        
         level = 7 
+        if( not levelStat[6] ):
+            levelStat[6] = True
+            levelSound.play()
         
         if( randint( 0, 1 ) == 0 ):
 
@@ -559,6 +642,9 @@ while run:
         if( not crashed ):
             player_sprites.draw( win )
             player_sprites.update()
+            checkHeal()
+            pickup_sprites.draw( win )
+            pickup_sprites.update()
             updateScore()
 
         else:
